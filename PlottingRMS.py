@@ -23,7 +23,7 @@ import argparse
 
 #Input i3 file with the data 
 parser = argparse.ArgumentParser()
-parser.add_argument("input", type=str, help="Name of .i3.gz file")
+parser.add_argument("input", type=str, help="Name of .npz file")
 args = parser.parse_args()
 
 filename = args.input

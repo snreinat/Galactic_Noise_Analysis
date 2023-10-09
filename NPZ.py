@@ -16,7 +16,7 @@ import argparse
 
 #Input i3 file with the data 
 parser = argparse.ArgumentParser()
-parser.add_argument("input", type=str, help="Name of .i3.gz file")
+parser.add_argument("input", type=str, nargs="+", default=[], help="List of i3 files")
 args = parser.parse_args()
 
 filename = args.input
@@ -86,7 +86,7 @@ class GalacticBackground(icetray.I3Module):
 tray = I3Tray()
 
 tray.AddModule("I3Reader", "reader",
-         FilenameList = [filename]) 
+         FilenameList = filename) 
 
 #Choosing soft trigger only 
 def select_soft(frame):
