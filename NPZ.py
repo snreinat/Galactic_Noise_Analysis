@@ -39,48 +39,59 @@ class GalacticBackground(icetray.I3Module):
         icetray.I3Module.__init__(self, ctx)
         self.AddParameter('InputName', 'InputName', "InputName")
         self.AddParameter('Output', 'Output', "Output")
+        self.AddParameter("ApplyInDAQ", "ApplyInDAQ", False)
     
     def Configure(self):
         self.inputName = self.GetParameter('InputName')
         self.output = self.GetParameter('Output')
+        self.applyinDAQ = self.GetParameter("ApplyInDAQ")
 
         self.timeOutput = []
         self.baselineRms = []
+        
         print("... I am starting")
 
     def RunForOneFrame(self, frame):
         time = frame["RadioTaxiTime"]
         time_new = np.datetime64(time.date_time).astype(datetime)
+        self.timeOutput.append(time_new)
 
-        rmsTraces, powerTraces = [], []
         antennaDataMap = frame[self.inputName]
+        rmsTraces = []
         for iant, antkey in enumerate(antennaDataMap.keys()):
             channelMap = antennaDataMap[antkey]
+            antenna_polarization_data = []
             for ichan, chkey in enumerate(channelMap.keys()):
                 fft = channelMap[ichan].GetFFTData()
                 timeSeries = fft.GetTimeSeries()
-                noises = cutTraces(timeSeries, lengthSubTraces=64, mode="rms")
-                rmsTraces.append(np.mean(noises[:10])) #take the median
-        
-            self.timeOutput.append(time_new)
-            self.baselineRms.append(rmsTraces)
-           
-
-    def Physics(self, frame):
+                noises = cutTraces(timeSeries, lengthSubTraces=64)
+                rms_value = np.mean(noises[:10]) 
+                self.baselineRms.append(rms_value)
+                
+ 
+    def DAQ(self, frame):
+        if self.applyinDAQ:
             self.RunForOneFrame(frame)
-        
-
+            
+    def Physics(self, frame):
+        if not self.applyinDAQ:
+            self.RunForOneFrame(frame)
+            
     def Finish(self):
         timeOutput = np.asarray(self.timeOutput)
         baselineRms = np.asarray(self.baselineRms)
+        # Reshape baselineRms to have dimensions (self.counts, 3, 2)
+        baselineRms_reshaped = baselineRms.reshape(-1, 3, 2)
+        # Save the data
         np.savez(self.output,
                  time=timeOutput,
-                 rms10=baselineRms[:, 0],
-                 rms11=baselineRms[:, 1],
-                 rms20=baselineRms[:, 2],
-                 rms21=baselineRms[:, 3],
-                 rms30=baselineRms[:, 4],
-                 rms31=baselineRms[:, 5]
+                 # Extract data for each antenna and polarization
+                 rms10 = baselineRms_reshaped[:, 0, 0],
+                 rms11 = baselineRms_reshaped[:, 0, 1],
+                 rms20 = baselineRms_reshaped[:, 1, 0],
+                 rms21 = baselineRms_reshaped[:, 1, 1],
+                 rms30 = baselineRms_reshaped[:, 2, 0],
+                 rms31 = baselineRms_reshaped[:, 2, 1]
                  )
 
 tray = I3Tray()
